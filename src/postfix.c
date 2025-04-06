@@ -20,27 +20,45 @@ precedence (int c)
     }
 }
 
+char *
+op2str (char op)
+{
+    switch (op) {
+    case '!':
+        return "!";
+    case '&':
+        return "&&";
+    case '|':
+        return "||";
+    default:
+        return "<ERR>";
+    }
+}
+
 void
 postfix (FILE *in, FILE *out)
 {
     stack_t s;
     int c, peekc;
-    int val;
 
     stack_init (&s);
 
     while ((c = fgetc (in)) != EOF && c != '\n' && c != '=') {
-        if (c == ' ' || c == '\t') {
+        if (isspace (c)) {
             continue;
         }
 
         if (isdigit (c)) {
+            int val;
             ungetc (c, in);
             fscanf (in, "%d", &val);
             fprintf (out, "%d ", val);
             continue;
         } else if (c == '-' || c == '+') {
-            fscanf (in, "%d", &val);
+            int val;
+            if (fscanf (in, "%d", &val) != 1) {
+                error ("Lexical error: Unexpected token sequence near '%c'", c);
+            }
             fprintf (out, "%c%d ", c, val);
         }
 
@@ -49,10 +67,10 @@ postfix (FILE *in, FILE *out)
             continue;
         } else if (c == ')') {
             while (!stack_empty (&s) && stack_peek (&s) != '(') {
-                fprintf (out, "%c ", stack_pop (&s));
+                fprintf (out, "%s ", op2str (stack_pop (&s)));
             }
             if (stack_empty (&s)) {
-                error ("Lexical error: Unmatched parentheses");
+                error ("Syntax error: Unbalanced parentheses");
             }
             stack_pop (&s);
             continue;
@@ -69,8 +87,7 @@ postfix (FILE *in, FILE *out)
 
             while (!stack_empty (&s) &&
                    precedence (stack_peek (&s)) >= precedence ('&')) {
-                stack_pop (&s);
-                fprintf (in, "&& ");
+                fprintf (out, "%s ", op2str (stack_pop (&s)));
             }
             stack_push (&s, '&');
             continue;
@@ -82,25 +99,26 @@ postfix (FILE *in, FILE *out)
 
             while (!stack_empty (&s) &&
                    precedence (stack_peek (&s)) >= precedence ('|')) {
-                stack_pop (&s);
-                fprintf (in, "|| ");
+                fprintf (out, "%s ", op2str (stack_pop (&s)));
             }
             stack_push (&s, '|');
             continue;
         }
 
-        error ("Lexical error: Unexpected symbol '%c'", c);
+        error ("Lexical error: Unexpected lexeme '%c'", c);
     }
 
     while (!stack_empty (&s)) {
         c = stack_pop (&s);
-        if (c == '!')
-            printf ("! ");
-        if (c == '&')
-            printf ("&& ");
-        if (c == '|')
-            printf ("&& ");
+        fprintf (out, "%s ", op2str (c));
     }
 
-    fprintf (in, "\n");
+    fprintf (out, "\n");
+}
+
+int
+main (void)
+{
+    postfix (stdin, stdout);
+    return 0;
 }

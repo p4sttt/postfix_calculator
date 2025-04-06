@@ -1,6 +1,8 @@
 #ifndef EVAL_H
 #define EVAL_H
 
-int eval_postfix (void);
+#include <stdio.h>
+
+void eval_postfix (FILE *in, FILE *out);
 
 #endif
